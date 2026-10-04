@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>JinTerm</title>
+  <link rel="stylesheet" href="vendor/xterm/xterm.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand"><span class="mark">&gt;_</span><span>JinTerm</span><span class="badge">GIT BASH</span></div>
+      <div class="actions">
+        <button id="copy" title="선택 영역 복사">복사</button>
+        <button id="paste" title="클립보드 붙여넣기">붙여넣기</button>
+        <button id="clear" title="화면 지우기">화면 지우기</button>
+      </div>
+    </header>
+    <main class="terminal-wrap" id="terminal-wrap">
+      <div id="terminal"></div>
+    </main>
+    <footer class="footer">
+      <span id="status" class="status"><i></i> 연결 중</span>
+      <span class="hint">Tab 자동완성 · Ctrl+C 복사/중단 · Ctrl+V 붙여넣기 · 여러 줄은 편집 후 실행</span>
+      <button id="compose" class="compose-button">여러 줄 명령 편집 <kbd>Ctrl+Shift+E</kbd></button>
+    </footer>
+  </div>
+  <div id="composer-backdrop" class="backdrop hidden" aria-hidden="true">
+    <section class="composer" role="dialog" aria-modal="true" aria-labelledby="composer-title">
+      <div class="composer-head">
+        <div><span class="eyebrow">COMMAND EDITOR</span><h1 id="composer-title">여러 줄 명령</h1></div>
+        <button id="close-composer" class="icon-button" title="닫기">×</button>
+      </div>
+      <p>붙여넣은 내용은 여기서 먼저 확인합니다. 실행하면 Git Bash가 위에서부터 순서대로 처리합니다.</p>
+      <textarea id="script" spellcheck="false" placeholder="명령어를 붙여넣거나 입력하세요..."></textarea>
+      <div class="composer-foot"><span>Enter 줄바꿈 · Ctrl+Enter 실행 · Esc 닫기</span><button id="run" class="run-button">실행 ↵</button></div>
+    </section>
+  </div>
+  <script src="vendor/xterm/xterm.js"></script>
+  <script src="vendor/fit/addon-fit.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

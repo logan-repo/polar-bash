@@ -1,0 +1,8 @@
+bin/
+obj/
+**/bin/
+**/obj/
+*.csproj.user
+webview-data/
+*.log
+*.pdb
