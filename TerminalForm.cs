@@ -1,24 +1,36 @@
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.WinForms;
+using Microsoft.Win32;
+using System.Diagnostics;
 using System.Text.Json;
 
-namespace JinTerm;
+namespace PolarBash;
 
 internal sealed class TerminalForm : Form
 {
     private readonly WebView2 browser = new() { Dock = DockStyle.Fill };
+    private readonly string workingDirectory;
+    private readonly List<string> pendingMessages = new();
     private ConPtySession? session;
     private bool webReady;
+    private int firstOutputLogged;
 
-    public TerminalForm()
+    public TerminalForm(string workingDirectory)
     {
-        Text = "JinTerm — Git Bash";
+        this.workingDirectory = workingDirectory;
+        Text = "Polar bash";
+        Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
         Width = 1120;
         Height = 720;
         MinimumSize = new Size(600, 400);
         BackColor = Color.FromArgb(13, 17, 23);
         Controls.Add(browser);
-        Shown += async (_, _) => await InitializeAsync();
+        Shown += (_, _) =>
+        {
+            Log("window shown");
+            StartShell();
+            _ = InitializeAsync();
+        };
         FormClosing += (_, _) => session?.Dispose();
     }
 
@@ -31,10 +43,11 @@ internal sealed class TerminalForm : Form
             Directory.CreateDirectory(webData);
             var environment = await CoreWebView2Environment.CreateAsync(userDataFolder: webData);
             await browser.EnsureCoreWebView2Async(environment);
+            Log("webview created");
             browser.CoreWebView2.Settings.AreDevToolsEnabled = false;
             browser.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
             browser.CoreWebView2.WebMessageReceived += OnMessage;
-            browser.CoreWebView2.SetVirtualHostNameToFolderMapping("jinterm.local",
+            browser.CoreWebView2.SetVirtualHostNameToFolderMapping("polarbash.local",
                 Path.Combine(AppContext.BaseDirectory, "wwwroot"),
                 CoreWebView2HostResourceAccessKind.DenyCors);
             browser.CoreWebView2.NavigationCompleted += async (_, args) =>
@@ -42,13 +55,16 @@ internal sealed class TerminalForm : Form
                 if (!args.IsSuccess)
                 {
                     Log("navigation failed: " + args.WebErrorStatus);
+                    session?.Dispose();
                     ShowStartupError("터미널 화면을 불러오지 못했습니다: " + args.WebErrorStatus);
                     return;
                 }
                 Log("navigation completed");
                 webReady = true;
-                StartShell();
-                if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("JINTERM_DIAGNOSTICS")))
+                foreach (string message in pendingMessages)
+                    browser.CoreWebView2.PostWebMessageAsJson(message);
+                pendingMessages.Clear();
+                if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("POLARBASH_DIAGNOSTICS")))
                 {
                     try
                     {
@@ -59,11 +75,12 @@ internal sealed class TerminalForm : Form
                     catch (Exception error) { Log("browser diagnostic error: " + error.Message); }
                 }
             };
-            browser.CoreWebView2.Navigate("https://jinterm.local/index.html");
+            browser.CoreWebView2.Navigate("https://polarbash.local/index.html");
         }
         catch (Exception error)
         {
             Log("webview error: " + error);
+            session?.Dispose();
             ShowStartupError("터미널 화면을 시작하지 못했습니다: " + error.Message);
         }
     }
@@ -71,12 +88,8 @@ internal sealed class TerminalForm : Form
     private void StartShell()
     {
         Log("starting shell");
-        string? shell = new[]
-        {
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Git", "bin", "bash.exe"),
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Git", "bin", "bash.exe"),
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "Git", "bin", "bash.exe")
-        }.FirstOrDefault(File.Exists);
+        Log("working directory: " + workingDirectory);
+        string? shell = FindGitBash();
         if (shell is null)
         {
             Post(new { type = "fatal", message = "Git for Windows가 설치되어 있지 않습니다. gitforwindows.org에서 설치한 뒤 다시 실행하세요." });
@@ -85,10 +98,12 @@ internal sealed class TerminalForm : Form
 
         try
         {
-            session = new ConPtySession(shell, Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
+            session = new ConPtySession(shell, workingDirectory);
             Log("shell process created");
             session.Output += data =>
             {
+                if (Interlocked.Exchange(ref firstOutputLogged, 1) == 0)
+                    Log("first shell output");
                 if (IsHandleCreated && !IsDisposed)
                     try { BeginInvoke(() => Post(new { type = "output", data })); }
                     catch (InvalidOperationException) { }
@@ -101,7 +116,7 @@ internal sealed class TerminalForm : Form
                     catch (InvalidOperationException) { }
             };
             session.Start();
-            Post(new { type = "ready", shell });
+            Post(new { type = "ready", shell, workingDirectory });
             _ = session.WriteAsync("bind 'set enable-bracketed-paste on'\r");
         }
         catch (Exception error)
@@ -111,9 +126,40 @@ internal sealed class TerminalForm : Form
         }
     }
 
+    private static string? FindGitBash()
+    {
+        var roots = new List<string>
+        {
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Git"),
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Git"),
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "Git")
+        };
+        foreach (RegistryHive hive in new[] { RegistryHive.CurrentUser, RegistryHive.LocalMachine })
+        {
+            foreach (RegistryView view in new[] { RegistryView.Registry64, RegistryView.Registry32 })
+            {
+                try
+                {
+                    using var key = RegistryKey.OpenBaseKey(hive, view).OpenSubKey(@"Software\GitForWindows");
+                    if (key?.GetValue("InstallPath") is string path && !string.IsNullOrWhiteSpace(path))
+                        roots.Add(path);
+                }
+                catch (System.Security.SecurityException) { }
+                catch (UnauthorizedAccessException) { }
+                catch (IOException) { }
+            }
+        }
+        foreach (string root in roots)
+        {
+            string bash = Path.Combine(root, "bin", "bash.exe");
+            if (File.Exists(bash)) return bash;
+        }
+        return null;
+    }
+
     private static void Log(string message)
     {
-        string? path = Environment.GetEnvironmentVariable("JINTERM_DIAGNOSTICS");
+        string? path = Environment.GetEnvironmentVariable("POLARBASH_DIAGNOSTICS");
         if (string.IsNullOrWhiteSpace(path)) return;
         try { File.AppendAllText(path, DateTime.Now.ToString("O") + " " + message + Environment.NewLine); }
         catch (IOException) { }
@@ -161,6 +207,11 @@ internal sealed class TerminalForm : Form
                     string selected = root.GetProperty("data").GetString() ?? "";
                     if (selected.Length > 0) Clipboard.SetText(selected);
                     break;
+                case "open-folder":
+                    var explorer = new ProcessStartInfo("explorer.exe") { UseShellExecute = true };
+                    explorer.ArgumentList.Add(workingDirectory);
+                    Process.Start(explorer);
+                    break;
             }
         }
         catch (Exception error)
@@ -173,7 +224,11 @@ internal sealed class TerminalForm : Form
 
     private void Post(object message)
     {
-        if (webReady && !IsDisposed && browser.CoreWebView2 is not null)
-            browser.CoreWebView2.PostWebMessageAsJson(JsonSerializer.Serialize(message));
+        if (IsDisposed) return;
+        string json = JsonSerializer.Serialize(message);
+        if (webReady && browser.CoreWebView2 is not null)
+            browser.CoreWebView2.PostWebMessageAsJson(json);
+        else
+            pendingMessages.Add(json);
     }
 }

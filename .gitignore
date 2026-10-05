@@ -4,5 +4,6 @@ obj/
 **/obj/
 *.csproj.user
 webview-data/
+artifacts/
 *.log
 *.pdb

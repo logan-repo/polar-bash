@@ -3,6 +3,11 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
+    <AssemblyName>PolarBash</AssemblyName>
+    <Version>0.3.0</Version>
+    <Product>Polar bash</Product>
+    <Description>Windows Git Bash terminal</Description>
+    <ApplicationIcon>assets\PolarBash.ico</ApplicationIcon>
     <Nullable>enable</Nullable>
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -12,6 +17,7 @@
     <Compile Remove="tests\**\*.cs" />
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4129.50" />
     <Content Include="wwwroot\**\*" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="assets\PolarBash.ico" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="ConPtyReference\MICROSOFT-TERMINAL-LICENSE" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="README.md" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>

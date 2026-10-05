@@ -3,7 +3,7 @@ using System.Text;
 using MiniTerm;
 using MiniTerm.Native;
 
-namespace JinTerm;
+namespace PolarBash;
 
 // The ConPTY setup uses Microsoft's MiniTerm sample. This class only adapts its pipes
 // to the app's UTF-8 message stream.

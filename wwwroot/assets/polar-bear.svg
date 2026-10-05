@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Polar bash">
+  <rect width="128" height="128" rx="25" fill="#012c4e"/>
+  <g fill="#ffe8a9">
+    <circle cx="43" cy="33" r="13"/>
+    <circle cx="85" cy="33" r="13"/>
+    <path d="M35 37c0-17 13-26 29-26s29 9 29 26c0 13-4 21-9 27 12 8 17 21 17 39v7H27v-7c0-18 5-31 17-39-5-6-9-14-9-27Z"/>
+    <ellipse cx="64" cy="81" rx="31" ry="34"/>
+    <ellipse cx="40" cy="106" rx="15" ry="7"/>
+    <ellipse cx="88" cy="106" rx="15" ry="7"/>
+  </g>
+  <g fill="#012c4e">
+    <circle cx="49" cy="45" r="3.6"/>
+    <circle cx="79" cy="45" r="3.6"/>
+    <ellipse cx="64" cy="55" rx="5.6" ry="4.2"/>
+  </g>
+  <g fill="none" stroke="#012c4e" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M64 59v5m-7 0c3 4 5 4 7 0 2 4 4 4 7 0" stroke-width="2.8"/>
+    <path d="M43 77c-3 8-3 17 1 23m41-23c3 8 3 17-1 23" stroke-width="5"/>
+    <path d="M56 91c2 8 2 13 0 18m16-18c-2 8-2 13 0 18" stroke-width="4"/>
+  </g>
+</svg>
